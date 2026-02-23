@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wcf-ui-wrapper"
+version = "0.1.0"
+description = "Windows WeChat UI automation wrapper"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pywinauto>=0.6.8",
+  "pywin32>=306",
+  "Pillow>=10.0.0",
+]
+
+[tool.setuptools]
+packages = ["Wcf"]
+
+[tool.setuptools.package-dir]
+Wcf = "."

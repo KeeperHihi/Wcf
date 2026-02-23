@@ -1,5 +1,9 @@
 import hashlib
-from utils import zip_text
+
+try:
+    from .utils import zip_text
+except ImportError:
+    from utils import zip_text
 
 class WxMsg:
     def __init__(

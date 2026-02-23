@@ -1,10 +1,14 @@
 # Wcf (UI 版微信控制)
 该仓库致敬伟大的 WechatFerry，试图用 UI 控制的方式复活 Wcf。
-
 基于 Windows UI 自动化（`pywinauto`）实现的微信桌面端消息能力封装：
 - 发送文本、发送图片
 - 轮询会话列表并收集新消息
 - 解析文本/图片消息（图片以 Data URL 返回）
+
+## 前情提要
+过去使用 WechatFerry 库可以通过 dll 注入直接控制微信，但随着微信禁止旧版本客户端的登录，该方法已经基本失效。
+在尝试复活 Wcf 的过程中，我发现 32 位某些旧版本的微信还可以继续登录，但是碍于 Wcf 的 32 位版本并不支持这些微信版本，
+加上逆向的成本和风险过高，所以试图用更加稳定安全的 UI 控制方式进行微信接管。
 
 ## 免责声明
 
@@ -34,9 +38,8 @@ uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ## 快速使用
 
-跑起来之前注意把 `Wcf.wx_name` 设置为你登陆微信的昵称，然后 python Wcf.py 即可
+跑起来之前注意把 `Wcf.wx_name` 设置为你登陆微信的昵称，然后 python Wcf.py 即可，或者跑下面的代码：
 ```python
-# Wcf.py
 from Wcf import Wcf
 
 wcf = Wcf()
@@ -65,6 +68,35 @@ wcf.disable_receive_msg()
 - 轮询依赖会话列表前若干项（超参数 `listen_cnt` ），会漏掉范围外会话。
 - 运行时请尽量避免手动抢焦点、拖动窗口、频繁切换 UI。
 - UI 控件文案或结构变化后，需按实际版本调整定位逻辑。
+
+## 作为 Python 库使用
+
+### 方式一：同级目录直接导入（无需安装）
+确保目录结构如下：
+```text
+your_project/
+	app.py
+	Wcf/
+		__init__.py
+		Wcf.py
+		...
+```
+
+然后在 `app.py` 中直接：
+```python
+from Wcf import Wcf
+```
+
+### 方式二：pip 安装
+在你的项目中执行：
+```bash
+pip install -e ../Wcf
+```
+
+安装后，无论你的代码文件放在哪，都可以：
+```python
+from Wcf import Wcf
+```
 
 ## 核心类
 

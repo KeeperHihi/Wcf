@@ -1,13 +1,21 @@
 import queue
 from pywinauto.application import Application
 import os
-from utils import *
+import random
+import time
 from threading import Lock, Event, Thread
-from WxMsg import WxMsg
-from MxMessageParser import MxMessageParser
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import mouse
 import traceback
+
+try:
+    from .utils import *
+    from .WxMsg import WxMsg
+    from .MxMessageParser import MxMessageParser
+except ImportError:
+    from utils import *
+    from WxMsg import WxMsg
+    from MxMessageParser import MxMessageParser
 
 class Wcf:
     def __init__(self):
@@ -54,11 +62,19 @@ class Wcf:
 
         print("Init finished")
 
+    def wait_a_little_while(self):
+        delta = self.eps / 10
+        low = max(0.0, self.eps - delta)
+        high = max(low, self.eps + delta)
+        time.sleep(random.uniform(low, high))
+
     def stay_focus(self):
         self.win.set_focus()
+        self.wait_a_little_while()
 
     def init(self):
         self.chat.click_input()
+        self.wait_a_little_while()
 
     def get_current_chat_and_is_group(self):
         """
@@ -106,13 +122,17 @@ class Wcf:
             cln_name, _, _ = analysis_name(exist_name.window_text())
             if cln_name == name:
                 exist_name.click_input()
+                self.wait_a_little_while()
                 self.current_chat_name = name
                 return
         self.search.click_input()
+        self.wait_a_little_while()
         paste_text(name, with_enter=True)
+        self.wait_a_little_while()
         search_result = self.win.child_window(title="@str:IDS_FAV_SEARCH_RESULT:3780", control_type="List")
         first_result = search_result.child_window(title=name, control_type="ListItem", found_index=0).wrapper_object()
         first_result.click_input()
+        self.wait_a_little_while()
         self.current_chat_name = name
 
     def jump_to_top_of_chatlist(self):
@@ -126,6 +146,7 @@ class Wcf:
             try:
                 self.switch_to_sb(receiver)
                 paste_text(text, with_enter=True)
+                self.wait_a_little_while()
                 self.add_new_msg(receiver, WxMsg(
                     type=0,
                     sender=self.wx_name,
@@ -147,6 +168,7 @@ class Wcf:
                     return 1
                 self.switch_to_sb(receiver)
                 paste_image(path, with_enter=True)
+                self.wait_a_little_while()
                 if self.enable_image_parse:
                     img_msg = self.message_parser.get_msg_from_image(None)
                     if img_msg:
@@ -209,7 +231,9 @@ class Wcf:
             x = int((rect.left + rect.right) / 2)
             y = int((rect.top + rect.bottom) / 2)
             btn.click_input(button="right")
+            self.wait_a_little_while()
             mouse.click(button="left", coords=(x + 10, y + 10)) # 要求复制必须是第一个选项
+            self.wait_a_little_while()
         res = self.message_parser.parse_single_msg(item)
         if res is not None:
             res.sender = sender

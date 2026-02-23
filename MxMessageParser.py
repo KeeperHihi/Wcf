@@ -4,9 +4,12 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Optional, List
-from PIL import ImageGrab
-from WxMsg import WxMsg
 from PIL import Image, ImageGrab
+
+try:
+    from .WxMsg import WxMsg
+except ImportError:
+    from WxMsg import WxMsg
 
 
 class MxMessageParser:
