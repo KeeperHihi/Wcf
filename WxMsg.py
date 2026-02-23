@@ -43,9 +43,10 @@ class WxMsg:
         return hash(self._signature())
 
     def from_group(self) -> bool:
-        raise NotImplementedError()
+        return self.roomid is not None
 
     def is_at(self, wxid: str) -> bool:
+        print(f'不提供判定 @ 的实现，请自行判断')
         raise NotImplementedError()
 
     def show(self):

@@ -30,7 +30,7 @@ class Wcf:
 
         print("parameters")
         self.wx_name = "hihi"
-        self.default_chat_name = "文件传输助手" # TODO: 使用时请保证只有文件传输助手是置顶的，不然可能会出bug
+        self.default_chat_name = "文件传输助手" # TODO: 使用时建议保证只有 default_chat_name 是置顶的，不然可能会出bug
         self.listen_cnt = 5
         self.eps = 0.01
         self.memory_len = 10
@@ -40,6 +40,7 @@ class Wcf:
 
         print("Other compositions")
         self.chat = self.win.child_window(title="聊天", control_type="Button").wrapper_object()
+        self.friend_list = self.win.child_window(title="通讯录", control_type="Button").wrapper_object()
         self.search = self.win.child_window(title="搜索", control_type="Edit").wrapper_object()
         self.message_parser = MxMessageParser()
         self.conv_list = self.win.child_window(title="会话", control_type="List")
@@ -52,8 +53,8 @@ class Wcf:
 
         print("Runtime elements")
         self.wx_lock = Lock()
-        self.current_chat_name, _, __ = self.get_current_chat_and_is_group()
-        print(f'初始会话对象：{self.current_chat_name}, 是否为群聊：{_}, 有几人：{__}')
+        self.current_chat_name, self.is_room, self.room_member_cnt = self.get_current_chat_and_is_group()
+        print(f'初始会话对象：{self.current_chat_name}, 是否为群聊：{self.is_room}, 有几人：{self.room_member_cnt}')
         self.msg_cache = {} # name -> [WxMsg]
         self.new_msg_queue = queue.Queue()
         self.new_msg_queue_lock = Lock()
@@ -109,8 +110,8 @@ class Wcf:
             return title_text, False, None
         name = (m.group("name") or "").strip()
         count = m.group("count")
-        is_group = count is not None
-        return name, is_group, (int(count) if count else None)
+        is_room = count is not None
+        return name, is_room, (int(count) if count else None)
 
     def switch_to_sb(self, name):
         # 调用时请确保已经 stay_focus 并且 init
@@ -123,7 +124,7 @@ class Wcf:
             if cln_name == name:
                 exist_name.click_input()
                 self.wait_a_little_while()
-                self.current_chat_name = name
+                self.current_chat_name, self.is_room, self.room_member_cnt = self.get_current_chat_and_is_group()
                 return
         self.search.click_input()
         self.wait_a_little_while()
@@ -133,7 +134,73 @@ class Wcf:
         first_result = search_result.child_window(title=name, control_type="ListItem", found_index=0).wrapper_object()
         first_result.click_input()
         self.wait_a_little_while()
-        self.current_chat_name = name
+        self.current_chat_name, self.is_room, self.room_member_cnt = self.get_current_chat_and_is_group()
+
+    def get_friends(self):
+        with self.wx_lock:
+            self.stay_focus()
+            self.friend_list.click_input()
+            self.wait_a_little_while()
+
+            contacts = self.win.child_window(title="联系人", control_type="List")
+            if not contacts.exists(timeout=self.eps):
+                return []
+            contacts = contacts.wrapper_object()
+
+            skip_names = {
+                "新的朋友",
+                "公众号",
+                "群聊",
+                "标签",
+                "企业微信联系人",
+                "通讯录管理",
+            }
+            friends = []
+            seen = set()
+
+            last_signature = None
+
+            try:
+                items = contacts.children(control_type="ListItem")
+                if not items:
+                    raise RuntimeError("联系人列表为空")
+                items[0].click_input()
+            except Exception as e:
+                traceback.print_exc()
+                print("聚焦通讯录失败！！！", e)
+                self.init()
+                return []
+            self.wait_a_little_while()
+            send_keys("{HOME}", with_spaces=True)
+            self.wait_a_little_while()
+
+            while True:
+                items = contacts.children(control_type="ListItem")
+                visible_names = []
+                for item in items:
+                    try:
+                        name = clean_name(item.window_text())
+                    except Exception:
+                        continue
+                    if name:
+                        visible_names.append(name)
+                    if not name or name in skip_names or re.fullmatch(r"[A-Z#]", name):
+                        continue
+                    if name not in seen:
+                        seen.add(name)
+                        friends.append(name)
+
+                signature = visible_names[-1] if visible_names else None
+                if signature == last_signature:
+                    break
+                last_signature = signature
+                send_keys("{PGDN}", with_spaces=True)
+                self.wait_a_little_while()
+            send_keys("{HOME}", with_spaces=True)
+            self.wait_a_little_while()
+            self.init()
+            return friends
+        
 
     def jump_to_top_of_chatlist(self):
         return # TODO: 被动接受消息，理论上一直会在最上面呆着，所以暂时不做处理
@@ -150,6 +217,7 @@ class Wcf:
                 self.add_new_msg(receiver, WxMsg(
                     type=0,
                     sender=self.wx_name,
+                    roomid=self.current_chat_name if self.is_room else None,
                     content=text,
                     is_meaningful=True,
                 ))
@@ -173,11 +241,13 @@ class Wcf:
                     img_msg = self.message_parser.get_msg_from_image(None)
                     if img_msg:
                         img_msg.sender = self.wx_name
+                        img_msg.roomid = self.current_chat_name if self.is_room else None
                         self.add_new_msg(receiver, img_msg)
                 else:
                     self.add_new_msg(receiver, WxMsg(
                         type=1,
                         sender=self.wx_name,
+                        roomid=self.current_chat_name if self.is_room else None,
                         content="这是一张图片，用户未开启图片解析功能，所以无法解析。",
                         is_meaningful=False,
                     ))
@@ -187,11 +257,19 @@ class Wcf:
                 print(f"发送图片时报错：{e}")
                 return 1
 
-    def get_msg(self, timeout=None):
+    def get_msg(self, timeout=1.0):
         try:
             new_msg_name = self.new_msg_queue.get(timeout=timeout)
         except queue.Empty:
-            return None
+            return None, None
+        with self.new_msg_queue_lock:
+            return new_msg_name, self.msg_cache.get(new_msg_name, [None])[-1]
+
+    def get_msg_list(self, timeout=1.0):
+        try:
+            new_msg_name = self.new_msg_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None, None
         with self.new_msg_queue_lock:
             return new_msg_name, list(self.msg_cache.get(new_msg_name, []))
 
@@ -237,6 +315,7 @@ class Wcf:
         res = self.message_parser.parse_single_msg(item)
         if res is not None:
             res.sender = sender
+            res.roomid = self.current_chat_name if self.is_room else None
         return res
 
     def get_latest_n_msg(self, n=1):
@@ -340,16 +419,17 @@ class Wcf:
                     parsed_name, _, new_msg_cnt = analysis_name(name.window_text())
                     if new_msg_cnt > 0:
                         self.get_new_msgs_from_person(parsed_name, new_msg_cnt)
-                        break
+                        return 1
             except Exception as e:
                 traceback.print_exc()
                 print(f"获取新消息出现错误：{e}")
-                return 1
+                return -1
             return 0
 
     def listening_to_new_msg(self):
         while not self.recv_stop_event.is_set():
-            self.get_new_msg()
+            if self.get_new_msg() == 0:
+                self.switch_to_sb(self.default_chat_name)
             self.recv_stop_event.wait(self.listen_msg_interval)
 
     def enable_receive_msg(self):
@@ -375,10 +455,12 @@ class Wcf:
 if __name__ == "__main__":
     wcf = Wcf()
 
-    wcf.enable_receive_msg()
-    wcf.send_text("hello, this is Wcf speaking!!!", "文件传输助手")
-
-    msg = wcf.get_msg(timeout=30) # 随便给自己发点啥
-    print(msg)
-
-    wcf.disable_receive_msg()
+    friends = wcf.get_friends()
+    print(friends)
+    # wcf.enable_receive_msg()
+    # wcf.send_text("hello, this is Wcf speaking!!!", "文件传输助手")
+    #
+    # msg = wcf.get_msg(timeout=30) # 随便给自己发点啥
+    # print(msg)
+    #
+    # wcf.disable_receive_msg()
