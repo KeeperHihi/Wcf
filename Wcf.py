@@ -92,7 +92,7 @@ class Wcf:
             print(f'错误：配置缺少字段 {e}，请检查 ./config/config.yaml')
             raise SystemExit(1)
 
-    def decorate_text(self, text: str) -> str | None:
+    def decorate_text(self, text: str) -> str:
         if text is None:
             return None
 
@@ -277,7 +277,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         info_btn = self.win.child_window(title="聊天信息", control_type="Button")
         if not info_btn.exists(timeout=self.eps):
             return self.default_chat_name, False, None  # 只有文件传输助手才没有聊天信息
-        # 2) 找到包含标题文本的那层容器（通常 parent 就够；不够就往上爬几层）
+        # 2) 找到包含标题文本的那层容器
         info_btn = info_btn.wrapper_object()
         bar = info_btn.parent()
 
@@ -285,7 +285,6 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         for _ in range(3): # 亲测 3 层就够了
             try:
                 texts = bar.descendants(control_type="Text")  # 只取直接 children，别用 descendants
-                # 标题栏里一般至少有 1 个 Text（会话名）
                 if texts:
                     break
                 bar = bar.parent()
@@ -634,7 +633,8 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
     def listening_to_new_msg(self):
         while not self.recv_stop_event.is_set():
             if self.get_new_msg() == 0:
-                self.switch_to_sb(self.default_chat_name)
+                if self.current_chat_name != self.default_chat_name:
+                    self.switch_to_sb(self.default_chat_name)
             self.recv_stop_event.wait(self.listen_msg_interval)
 
     def enable_receive_msg(self):
