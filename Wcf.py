@@ -9,6 +9,7 @@ from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import mouse
 import traceback
 import yaml
+from typing import Any
 
 
 try:
@@ -80,6 +81,7 @@ class Wcf:
             self.default_chat_name = cfg['default_chat_name']
             self.listen_cnt = int(cfg['listen_cnt'])
             self.eps = float(cfg['eps'])
+            self.square_eps = float(cfg['square_eps'])
             self.memory_len = int(cfg['memory_len'])
             self.max_new_msg_cnt = int(cfg['max_new_msg_cnt'])
             self.listen_msg_interval = float(cfg['listen_msg_interval'])
@@ -91,6 +93,44 @@ class Wcf:
         except KeyError as e:
             print(f'错误：配置缺少字段 {e}，请检查 ./config/config.yaml')
             raise SystemExit(1)
+
+    def _resolve_click_center(self, target: Any) -> tuple[int, int]:
+        if target is None:
+            raise ValueError('click target is None')
+
+        if isinstance(target, (tuple, list)) and len(target) == 2:
+            x, y = target
+            return int(x), int(y)
+
+        if not isinstance(target, UIAWrapper) and hasattr(target, 'wrapper_object'):
+            target = target.wrapper_object()
+
+        if not hasattr(target, 'rectangle'):
+            raise TypeError(f'unsupported click target type: {type(target)!r}')
+
+        rect = target.rectangle()
+        x = int((rect.left + rect.right) / 2)
+        y = int((rect.top + rect.bottom) / 2)
+        return x, y
+
+    def click(self, target: Any, *, button: str = 'left', square_eps: float | None = None):
+        """
+        统一点击入口：
+        - target 可以是 (x, y) 坐标，或可点击控件（会取控件中心坐标）
+        - 在中心点附近边长为 2*square_eps 的正方形内随机取点点击
+        """
+        x, y = self._resolve_click_center(target)
+        eps = self.square_eps if square_eps is None else square_eps
+        try:
+            eps_val = float(eps)
+        except Exception:
+            eps_val = 0.0
+
+        if eps_val > 0:
+            x += int(round(random.uniform(-eps_val, eps_val)))
+            y += int(round(random.uniform(-eps_val, eps_val)))
+
+        mouse.click(button=button, coords=(int(x), int(y)))
 
     def decorate_text(self, text: str) -> str:
         if text is None:
@@ -255,7 +295,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         return str(res).strip()
 
     def wait_a_little_while(self):
-        delta = self.eps / 10
+        delta = self.eps / 2
         low = max(0.0, self.eps - delta)
         high = max(low, self.eps + delta)
         time.sleep(random.uniform(low, high))
@@ -265,7 +305,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         self.wait_a_little_while()
 
     def init(self):
-        self.chat.click_input()
+        self.click(self.chat)
         self.wait_a_little_while()
 
     def get_current_chat_and_is_group(self):
@@ -312,11 +352,11 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         for exist_name in exist_names:
             cln_name, _, _ = analysis_name(exist_name.window_text())
             if cln_name == name:
-                exist_name.click_input()
+                self.click(exist_name)
                 self.wait_a_little_while()
                 self.current_chat_name, self.is_room, self.room_member_cnt = self.get_current_chat_and_is_group()
                 return
-        self.search.click_input()
+        self.click(self.search)
         self.wait_a_little_while()
         type_text_humanlike(
             name,
@@ -327,14 +367,14 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         self.wait_a_little_while()
         search_result = self.win.child_window(title="@str:IDS_FAV_SEARCH_RESULT:3780", control_type="List")
         first_result = search_result.child_window(title=name, control_type="ListItem", found_index=0).wrapper_object()
-        first_result.click_input()
+        self.click(first_result)
         self.wait_a_little_while()
         self.current_chat_name, self.is_room, self.room_member_cnt = self.get_current_chat_and_is_group()
 
     def get_friends(self):
         with self.wx_lock:
             self.stay_focus()
-            self.friend_list.click_input()
+            self.click(self.friend_list)
             self.wait_a_little_while()
 
             contacts = self.win.child_window(title="联系人", control_type="List")
@@ -359,7 +399,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
                 items = contacts.children(control_type="ListItem")
                 if not items:
                     raise RuntimeError("联系人列表为空")
-                items[0].click_input()
+                self.click(items[0])
             except Exception as e:
                 traceback.print_exc()
                 print("聚焦通讯录失败！！！", e)
@@ -512,9 +552,9 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
             rect = btn.rectangle()
             x = int((rect.left + rect.right) / 2)
             y = int((rect.top + rect.bottom) / 2)
-            btn.click_input(button="right")
+            self.click(btn, button='right')
             self.wait_a_little_while()
-            mouse.click(button="left", coords=(x + 10, y + 10)) # 要求复制必须是第一个选项
+            self.click((x + 10, y + 10))  # 要求复制必须是第一个选项
             self.wait_a_little_while()
         res = self.message_parser.parse_single_msg(item)
         if res is not None:
@@ -660,7 +700,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
 if __name__ == "__main__":
     wcf = Wcf()
 
-    wcf.send_text('有一件很奇怪的事情不知道你发现了没有，我觉得我是个sb，今天放学我又没主动跟她说话', '金天', need_decorate=True)
+    wcf.send_text('请你帮我生成随机的一句话，要求符合你的系统提示词，不要让微信发现是机器人在说话，说点家常', '金天', need_decorate=True)
 
     # wcf.enable_receive_msg()
     # wcf.send_text("hello, this is Wcf speaking!!!", "文件传输助手")
