@@ -3,10 +3,18 @@ from pywinauto.application import Application
 import os
 import random
 import time
+from pathlib import Path
 from threading import Lock, Event, Thread
 from pywinauto.controls.uiawrapper import UIAWrapper
 from pywinauto import mouse
 import traceback
+import yaml
+
+
+try:
+    from .API import API
+except Exception:
+    from API import API
 
 try:
     from .utils import *
@@ -19,6 +27,11 @@ except ImportError:
 
 class Wcf:
     def __init__(self):
+        self.load_parameters_from_yaml()
+        if not self.wx_name or not str(self.wx_name).strip():
+            print('错误：请在 ./config/config.yaml 中设置非空的 wx_name（你当前登录微信的昵称）。')
+            raise SystemExit(1)
+
         print("Application")
         self.app = Application(backend="uia").connect(path="WeChat.exe")
 
@@ -27,16 +40,6 @@ class Wcf:
 
         print("Regular Expressions")
         self._GROUP_RE = re.compile(r"^(?P<name>.*?)(?:\s*\((?P<count>\d+)\))?$")
-
-        print("parameters")
-        self.wx_name = "hihi"
-        self.default_chat_name = "文件传输助手" # TODO: 使用时建议保证只有 default_chat_name 是置顶的，不然可能会出bug
-        self.listen_cnt = 5
-        self.eps = 0.01
-        self.memory_len = 10
-        self.max_new_msg_cnt = 4
-        self.listen_msg_interval = 1 # 收集新消息的时间间隔
-        self.enable_image_parse = True
 
         print("Other compositions")
         self.chat = self.win.child_window(title="聊天", control_type="Button").wrapper_object()
@@ -62,6 +65,194 @@ class Wcf:
         self.recv_thread: Thread | None = None
 
         print("Init finished")
+
+    def load_parameters_from_yaml(self):
+        cfg_path = Path(__file__).resolve().parent / 'config' / 'config.yaml'
+        if not cfg_path.exists():
+            print(f'错误：未找到配置文件：{cfg_path}（期望路径为 ./config/config.yaml）')
+            raise SystemExit(1)
+
+        with cfg_path.open('r', encoding='utf-8') as f:
+            cfg = yaml.safe_load(f) or {}
+
+        try:
+            self.wx_name = cfg['wx_name']
+            self.default_chat_name = cfg['default_chat_name']
+            self.listen_cnt = int(cfg['listen_cnt'])
+            self.eps = float(cfg['eps'])
+            self.memory_len = int(cfg['memory_len'])
+            self.max_new_msg_cnt = int(cfg['max_new_msg_cnt'])
+            self.listen_msg_interval = float(cfg['listen_msg_interval'])
+            self.type_min_interval = float(cfg['type_min_interval'])
+            self.type_max_interval = float(cfg['type_max_interval'])
+            self.enable_image_parse = bool(cfg['enable_image_parse'])
+            self.llm = dict(cfg['llm'])
+            self.api = API(config=self.llm)
+        except KeyError as e:
+            print(f'错误：配置缺少字段 {e}，请检查 ./config/config.yaml')
+            raise SystemExit(1)
+
+    def decorate_text(self, text: str) -> str | None:
+        if text is None:
+            return None
+
+        system_prompt = '''
+你是一位精通社交媒体沟通的语言风格大师。你的核心任务是接收一段由程序提供的固定文本，并对其进行润色和改写，使其看起来更像是真人在微信聊天中发出的消息，而不是由机器人自动生成的。最终目标是帮助微信机器人规避因发送重复、模式化消息而被平台限制的风险。
+
+在执行任务时，请严格遵守以下核心原则：
+
+1. 保持原意（Highest Priority）
+这是最高优先级的要求。无论你如何调整句式、语气或用词，改写后的文本必须完整、准确地传达原始文本的全部核心信息。绝不能增加、删减或扭曲原文的意图。
+
+2. 风格自然口语化
+
+模拟真人对话：使用自然、流畅的口语，就像朋友之间聊天一样。
+避免书面语：避免使用过于正式、僵硬或充满“程序感”的词汇和句式。
+语气友好：除非原文带有特殊情绪，否则整体基调应保持友好、礼貌和乐于助人。
+3. 创造表达多样性
+
+拒绝模板化：这是你的关键价值所在。对于同一个输入，你的每一次输出都应该力求不同。请主动变换句式结构、使用同义词、调整语序。
+随机性：在保持自然的前提下，引入一定的随机性，让每次生成的结果都有细微差别。
+4. 恰当使用辅助元素
+
+Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地加入 1-2 个通用且符合情境的 Emoji，这能极大地提升消息的“真人感”。请注意不要过度使用或使用不恰当的表情。
+标点符号：可以灵活使用标点，例如用“～”代替“。”来表达更轻松的语气，或适当使用感叹号“！”来加强情绪。
+5. 简洁清晰
+在追求口语化和自然风格的同时，确保信息传达的清晰度。改写后的句子应言简意赅、易于理解，避免使用过于复杂或生僻的词汇。
+
+6. 注意表情必须使用微信的表情代码，把对应的代码嵌入你的回答中，发送后将会自动表现为表情。列表如下：
+[Aaagh!]
+[Angry]
+[Awesome]
+[Awkward]
+[Bah！R]
+[Bah！L]
+[Beckon]
+[Beer]
+[Blessing]
+[Blush]
+[Bomb]
+[Boring]
+[Broken]
+[BrokenHeart]
+[Bye]
+[Cake]
+[Chuckle]
+[Clap]
+[Cleaver]
+[Coffee]
+[Commando]
+[Concerned]
+[CoolGuy]
+[Cry]
+[Determined]
+[Dizzy]
+[Doge]
+[Drool]
+[Drowsy]
+[Duh]
+[Emm]
+[Facepalm]
+[Fireworks]
+[Fist]
+[Flushed]
+[Frown]
+[Gift]
+[GoForIt]
+[Grimace]
+[Grin]
+[Hammer]
+[Happy]
+[Heart]
+[Hey]
+[Hug]
+[Hurt]
+[Joyful]
+[KeepFighting]
+[Kiss]
+[Laugh]
+[Let Down]
+[LetMeSee]
+[Lips]
+[Lol]
+[Moon]
+[MyBad]
+[NoProb]
+[NosePick]
+[OK]
+[OMG]
+[Onlooker]
+[Packet]
+[Panic]
+[Party]
+[Peace]
+[Pig]
+[Pooh-pooh]
+[Poop]
+[Puke]
+[Respect]
+[Rose]
+[Salute]
+[Scold]
+[Scowl]
+[Scream]
+[Shake]
+[Shhh]
+[Shocked]
+[Shrunken]
+[Shy]
+[Sick]
+[Sigh]
+[Silent]
+[Skull]
+[Sleep]
+[Slight]
+[Sly]
+[Smart]
+[Smile]
+[Smirk]
+[Smug]
+[Sob]
+[Speechless]
+[Sun]
+[Surprise]
+[Sweat]
+[Sweats]
+[TearingUp]
+[Terror]
+[ThumbsDown]
+[ThumbsUp]
+[Toasted]
+[Tongue]
+[Tremble]
+[Trick]
+[Twirl]
+[Watermelon]
+[Waddle]
+[Whimper]
+[Wilt]
+[Worship]
+[Wow]
+[Yawn]
+[Yeah!]
+输出要求：你的回答必须且仅能包含润色后的文本内容。
+
+不要包含任何解释、分析、或前缀，例如“好的，这是改写后的版本：”、“这里有几个选项：”等。直接输出最终结果即可。
+'''
+        msgs = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': str(text)},
+        ]
+        try:
+            res = self.api.get_response(msgs)
+            print(f'润色前: {text}')
+            print(f'润色后: {res}')
+        except Exception as e:
+            print(f'润色文本时报错：{e}')
+            return None
+        if not res or not str(res).strip():
+            return None
+        return str(res).strip()
 
     def wait_a_little_while(self):
         delta = self.eps / 10
@@ -91,7 +282,7 @@ class Wcf:
         bar = info_btn.parent()
 
         texts = None
-        for _ in range(3):
+        for _ in range(3): # 亲测 3 层就够了
             try:
                 texts = bar.descendants(control_type="Text")  # 只取直接 children，别用 descendants
                 # 标题栏里一般至少有 1 个 Text（会话名）
@@ -128,7 +319,12 @@ class Wcf:
                 return
         self.search.click_input()
         self.wait_a_little_while()
-        paste_text(name, with_enter=True)
+        type_text_humanlike(
+            name,
+            with_enter=True,
+            min_interval=self.type_min_interval,
+            max_interval=self.type_max_interval
+        )
         self.wait_a_little_while()
         search_result = self.win.child_window(title="@str:IDS_FAV_SEARCH_RESULT:3780", control_type="List")
         first_result = search_result.child_window(title=name, control_type="ListItem", found_index=0).wrapper_object()
@@ -206,13 +402,22 @@ class Wcf:
         return # TODO: 被动接受消息，理论上一直会在最上面呆着，所以暂时不做处理
         self.switch_to_sb(self.default_chat_name)
 
-    def send_text(self, text: str, receiver: str) -> int:
+    def send_text(self, text: str, receiver: str, need_decorate: bool = False) -> int:
         with self.wx_lock:
             self.stay_focus()
             receiver = clean_name(receiver)
             try:
+                if need_decorate:
+                    decorated = self.decorate_text(text)
+                    if decorated is not None:
+                        text = decorated
                 self.switch_to_sb(receiver)
-                paste_text(text, with_enter=True)
+                type_text_humanlike(
+                    text, 
+                    with_enter=True, 
+                    min_interval=self.type_min_interval, 
+                    max_interval=self.type_max_interval
+                )
                 self.wait_a_little_while()
                 self.add_new_msg(receiver, WxMsg(
                     type=0,
@@ -455,8 +660,8 @@ class Wcf:
 if __name__ == "__main__":
     wcf = Wcf()
 
-    friends = wcf.get_friends()
-    print(friends)
+    wcf.send_text('有一件很奇怪的事情不知道你发现了没有，我觉得我是个sb，今天放学我又没主动跟她说话', '金天', need_decorate=True)
+
     # wcf.enable_receive_msg()
     # wcf.send_text("hello, this is Wcf speaking!!!", "文件传输助手")
     #

@@ -38,7 +38,7 @@ uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ## 快速使用
 
-跑起来之前注意把 `Wcf.wx_name` 设置为你登陆微信的昵称，然后 python Wcf.py 即可，或者跑下面的代码：
+跑起来之前先在 `./config/config.yaml` 里设置 `wx_name` 为你登陆微信的昵称，然后 python Wcf.py 即可，或者跑下面的代码：
 ```python
 from Wcf import Wcf
 
@@ -46,6 +46,9 @@ wcf = Wcf()
 
 wcf.enable_receive_msg()
 wcf.send_text("hello", "文件传输助手")
+
+# 可选：发送前让大模型润色，防止重复话术被微信检测为机器人（需要在 ./config/config.yaml 配好 api/providers）
+wcf.send_text("你好", "文件传输助手", need_decorate=True)
 
 msg = wcf.get_msg(timeout=5)
 print(msg)
@@ -106,11 +109,29 @@ from Wcf import Wcf
 
 主要 API：
 - `init()`：进入聊天页，完成基础准备。
-- `send_text(text, receiver) -> int`：发送文本，`0` 成功，`1` 失败。
+- `send_text(text, receiver, need_decorate=False) -> int`：发送文本；当 `need_decorate=True` 时，会先用大模型对文本做“保留原意的润色改写”再发送。
 - `send_image(path, receiver) -> int`：发送图片，`0` 成功，`1` 失败。
 - `enable_receive_msg() -> bool`：启动后台收消息线程。
 - `disable_receive_msg(timeout=5.0) -> bool`：停止后台收消息线程。
 - `get_msg(timeout=None)`：从队列取一条新消息，返回 `(chat_name, [WxMsg...])` 或 `None`。
+
+## （可选）大模型润色配置
+
+如果你想使用 `need_decorate=True`，请在 `./config/config.yaml` 里按 `API.py` 的结构填充：
+
+```yaml
+llm:
+    provider:
+        api_key: "YOUR_API_KEY"
+        url: "https://api.openai.com/v1"
+        model: "gpt-5.2"
+
+    # 这些字段会在请求时透传给 chat.completions.create（可选）
+    model:
+        name: Decorator
+        # temperature: 0.7
+        # max_tokens: 512
+```
 
 ### `MxMessageParser`
 

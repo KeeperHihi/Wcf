@@ -2,3 +2,6 @@ local
 wcf
 .idea/
 __pycache__/
+
+config/config.yaml
+!config/config-template.yaml

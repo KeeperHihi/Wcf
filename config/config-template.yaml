@@ -1,0 +1,37 @@
+# Wcf 参数配置
+# 注意：wx_name 必填，必须改成你当前登录微信的昵称（用于消息发送者字段）。
+
+wx_name: "hihi"
+
+# 建议保证只有 default_chat_name 是置顶的，不然可能会出 bug
+default_chat_name: "文件传输助手"
+
+listen_cnt: 5
+
+eps: 0.01
+memory_len: 10
+max_new_msg_cnt: 4
+
+# 收集新消息的时间间隔（秒）
+listen_msg_interval: 1
+type_min_interval: 0.02
+type_max_interval: 0.12
+
+enable_image_parse: false
+
+# =====================
+# 可选：大模型润色配置
+# 用于：wcf.send_text(text, receiver, need_decorate=True)
+# =====================
+
+llm:
+    provider:
+        api_key: "YOUR_API_KEY"
+        url: "https://api.openai.com/v1"
+        model: "gpt-5.2"
+
+    # 这些字段会在请求时透传给 chat.completions.create（可选）
+    model:
+        name: Decorator
+        # temperature: 0.7
+        # max_tokens: 512

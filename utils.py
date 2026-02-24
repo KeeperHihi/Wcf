@@ -4,6 +4,50 @@ import win32con
 from PIL import Image
 import io
 import re
+import random
+import time
+
+
+def _escape_send_keys_char(ch: str) -> str:
+    if ch == "\r":
+        return ""
+    if ch == "\n":
+        return "^{ENTER}"  # Ctrl+Enter: 换行但不发送
+    if ch == "\t":
+        return "{TAB}"
+    if ch == "{":
+        return "{{}"
+    if ch == "}":
+        return "{}}"
+    if ch in "+^%~()":
+        return "{" + ch + "}"
+    return ch
+
+
+def type_text_humanlike(
+    text: str,
+    *,
+    with_enter: bool = False,
+    min_interval: float = 0.02,
+    max_interval: float = 0.12,
+):
+    """模拟人类键入：逐字符输入 + 随机间隔，不使用剪贴板。"""
+    if not text:
+        if with_enter:
+            send_keys("{ENTER}", pause=0, with_spaces=True)
+        return
+
+    low = max(0.0, float(min_interval))
+    high = max(low, float(max_interval))
+    for ch in str(text):
+        seq = _escape_send_keys_char(ch)
+        if seq:
+            send_keys(seq, pause=0, with_spaces=True)
+        time.sleep(random.uniform(low, high))
+
+    if with_enter:
+        time.sleep(random.uniform(low, high))
+        send_keys("{ENTER}", pause=0, with_spaces=True)
 
 def set_clipboard_text(text: str) -> None:
     win32clipboard.OpenClipboard()
@@ -66,6 +110,12 @@ def analysis_name(text: str) -> tuple[str, bool, int]:
     # 3) 本名
     name = s
     return name, is_pinned, new_msg_cnt
+
+def ZIP(content: str) -> str:
+    s = content.replace('\n', '')
+    if len(s) < 40:
+        return content
+    return f'“{s[:10]}......{s[-10:]}”'
 
 
 def print_descendants(item):
