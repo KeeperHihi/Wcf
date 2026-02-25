@@ -115,15 +115,6 @@ class MxMessageParser:
             content="这是一个表情，暂时无法解析",
             is_meaningful=False
         )
-        # texts = self._extract_all_texts(item)
-        # merged = self._join_meaningful(texts)
-        # if not merged:
-        #     print("[消息解析失败] get_msg_from_emoji: 内容为空")
-        #     return None
-        return WxMsg(
-            type=3,
-            content=merged
-        )
 
     def get_msg_from_other(self, item) -> Optional[WxMsg]:
         # TODO: 暂时忽略其他类型
@@ -131,15 +122,6 @@ class MxMessageParser:
             type=-1,
             content="这是一个未知数据，暂时无法解析",
             is_meaningful=False
-        )
-        # texts = self._extract_all_texts(item)
-        # merged = self._join_meaningful(texts)
-        # if not merged:
-        #     print("[消息解析失败] get_msg_from_other: 内容为空")
-        #     return None
-        return WxMsg(
-            type=3,
-            content=merged
         )
 
     def _safe_text(self, ctrl) -> str:
