@@ -1,6 +1,6 @@
 # Wcf（UI 版微信控制）
 
-该项目致敬 [WechatFerry](https://github.com/lich0821/WeChatFerry.git)，尝试用 **Windows UI 自动化** 的方式实现微信桌面端控制能力。
+该项目致敬 [WeChatFerry](https://github.com/lich0821/WeChatFerry.git)，尝试用 **Windows UI 自动化** 的方式实现微信桌面端控制能力。
 
 ## 项目状态
 
