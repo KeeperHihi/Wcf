@@ -64,7 +64,7 @@ for friend in friends:
     print(friend)
 
 wcf.enable_receive_msg()
-wcf.send_text('你好呀！', '文件传输助手', need_decorate=True)
+wcf.send_text('你好呀！', '文件传输助手', need_decorate=False)
 while True:
     name, msg = wcf.get_msg(timeout=1.0) # 内部会有日志输出
 ```
