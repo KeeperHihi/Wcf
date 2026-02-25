@@ -1,33 +1,49 @@
-# Wcf (UI 版微信控制)
-该仓库致敬伟大的 WechatFerry，试图用 UI 控制的方式复活 Wcf。
-基于 Windows UI 自动化（`pywinauto`）实现的微信桌面端消息能力封装：
-- 发送文本、发送图片
-- 轮询会话列表并收集新消息
-- 解析文本/图片消息（图片以 Data URL 返回）
+# Wcf（UI 版微信控制）
 
-## 前情提要
-过去使用 WechatFerry 库可以通过 dll 注入直接控制微信，但随着微信禁止旧版本客户端的登录，该方法已经基本失效。
-在尝试复活 Wcf 的过程中，我发现 32 位某些旧版本的微信还可以继续登录，但是碍于 Wcf 的 32 位版本并不支持这些微信版本，
-加上逆向的成本和风险过高，所以试图用更加稳定安全的 UI 控制方式进行微信接管。
+该项目致敬 [WechatFerry](https://github.com/lich0821/WeChatFerry.git)，尝试用 **Windows UI 自动化** 的方式实现微信桌面端控制能力。
 
-## 免责声明
+## 项目状态
 
-本项目仅用于学习、研究与个人自动化测试。使用者需自行承担全部风险与责任，包括但不限于账号风险、数据安全风险、以及因违反微信相关协议或当地法律法规导致的后果。请勿将本项目用于任何违法、滥用或侵犯他人权益的用途。
+> 🚧 当前仍处于**开发阶段**。
+> 主要功能已可用，但稳定性、兼容性和边界场景还在持续完善，使用过程中可能遇到 bug。
+> 欢迎试用并提交 issue / PR / 使用反馈。
+
+## 目前已支持（重点模块）
+
+- [x] 微信客户端连接与基础 UI 控制（基于 `pywinauto`）
+- [x] 会话切换（会话列表命中 + 搜索兜底）
+- [x] 鼠标移动（模拟人类操控）
+- [x] 文本发送（逐字符模拟键入 + 随机间隔）
+- [x] 可选 LLM 文本“润色”（`send_text(..., need_decorate=True)`）
+- [x] 图片发送（剪贴板粘贴发送）
+- [x] 新消息监听（后台轮询 + 队列消费）
+- [x] 基础消息解析（文本、图片）与统一消息结构（`WxMsg`）
+
+## TODO（计划完善）
+
+- [ ] 当务之急：解决并发消息时可能会丢包的问题，主要出现在同一聊天中短时间内收到超过一条消息时
+- [ ] 视频 / 表情 / 其他复杂消息类型的完整解析
+- [ ] 更多微信版本与界面变化下的兼容性增强
+- [ ] 异常恢复与稳定性提升（长时间运行、焦点干扰等）
+- [ ] 更完善的示例与自动化测试覆盖
 
 ## 适用范围
 
-- 目前必须为 Windows 上的微信 3.9.12，还必须得是 32 位的才可以登录，获取方式见这个[伟大的仓库](https://github.com/Skyler1n/WeChat3.9-32bit-Compatibility-Launcher)
-- 依赖微信 Windows 客户端界面结构（UI 变化可能导致失效）
-- 当前项目以中文界面控件标题为定位依据（例如“微信”“聊天”“会话”“消息”）
+- 当前面向 **Windows 微信 3.9.12（32 位）** 使用场景。
+- 依赖微信桌面端 UI 结构，微信版本升级或界面改动可能导致失效。
+- 当前控件定位依赖中文界面文案（如“微信”“聊天”“会话”“消息”）。
 
-## 配置环境
+可参考该仓库获取对应版本微信兼容启动方式：
+[https://github.com/Skyler1n/WeChat3.9-32bit-Compatibility-Launcher](https://github.com/Skyler1n/WeChat3.9-32bit-Compatibility-Launcher)
 
-use conda or uv or anying you want（
+## 安装
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### 大佬勿看，windows 端无脑配置环境
+Windows（uv）示例：
+
 ```bash
 irm https://astral.sh/uv/install.ps1 | iex
 uv python install 3.10.16
@@ -38,22 +54,26 @@ uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ## 快速使用
 
-跑起来之前先在 `./config/config.yaml` 里设置 `wx_name` 为你登陆微信的昵称，然后 python Wcf.py 即可，或者跑下面的代码：
+先在 `./config/config.yaml` 中设置：
+- `wx_name`：你当前登录微信的昵称
+- `default_chat_name`：默认会话（建议唯一置顶）
+
+然后运行示例：
+
 ```python
 from Wcf import Wcf
 
 wcf = Wcf()
 
+friends = wcf.get_friends()
+print(f'friends ({len(friends)}): ')
+for friend in friends:
+    print(friend)
+
 wcf.enable_receive_msg()
-wcf.send_text("hello", "文件传输助手")
-
-# 可选：发送前让大模型润色，防止重复话术被微信检测为机器人（需要在 ./config/config.yaml 配好 api/providers）
-wcf.send_text("你好", "文件传输助手", need_decorate=True)
-
-msg = wcf.get_msg(timeout=5)
-print(msg)
-
-wcf.disable_receive_msg()
+wcf.send_text('你好呀！', '文件传输助手', need_decorate=True)
+while True:
+    name, msg = wcf.get_msg(timeout=1.0) # 内部会有日志输出
 ```
 
 ## 实现原理（简述）
@@ -74,7 +94,6 @@ wcf.disable_receive_msg()
 
 ## 作为 Python 库使用
 
-### 方式一：同级目录直接导入（无需安装）
 确保目录结构如下：
 ```text
 your_project/
@@ -86,17 +105,6 @@ your_project/
 ```
 
 然后在 `app.py` 中直接：
-```python
-from Wcf import Wcf
-```
-
-### 方式二：pip 安装
-在你的项目中执行：
-```bash
-pip install -e ../Wcf
-```
-
-安装后，无论你的代码文件放在哪，都可以：
 ```python
 from Wcf import Wcf
 ```
@@ -128,7 +136,6 @@ llm:
         url: "https://api.openai.com/v1"
         model: "gpt-5.2"
 
-    # 这些字段会在请求时透传给 chat.completions.create（可选）
     model:
         name: Decorator
         # temperature: 0.7
@@ -154,3 +161,7 @@ llm:
 - `content`：消息正文（文本或 Data URL）
 - `is_meaningful`：是否为可用消息
 - `hash_id`：该消息的专属哈希值
+
+## 免责声明
+
+本项目仅用于学习、研究与个人自动化测试。使用者需自行承担全部风险与责任，包括但不限于账号风险、数据安全风险，以及因违反微信相关协议或当地法律法规导致的后果。请勿将本项目用于任何违法、滥用或侵犯他人权益的用途。
