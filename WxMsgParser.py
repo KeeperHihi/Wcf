@@ -12,7 +12,7 @@ except ImportError:
     from WxMsg import WxMsg
 
 
-class MxMsgParser:
+class WxMsgParser:
     """
     类型：
       0 = 文本
