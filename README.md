@@ -8,7 +8,7 @@
 > 主要功能已可用，但稳定性、兼容性和边界场景还在持续完善，使用过程中可能遇到 bug。
 > 欢迎试用并提交 issue / PR / 使用反馈。
 
-## 目前已支持（重点模块）
+## 目前已支持
 
 - [x] 微信客户端连接与基础 UI 控制（基于 `pywinauto`）
 - [x] 会话切换（会话列表命中 + 搜索兜底）
@@ -19,7 +19,7 @@
 - [x] 新消息监听（后台轮询 + 队列消费）
 - [x] 基础消息解析（文本、图片）与统一消息结构（`WxMsg`）
 
-## TODO（计划完善）
+## TODO
 
 - [ ] 当务之急：解决并发消息时可能会丢包的问题，主要出现在同一聊天中短时间内收到超过一条消息时
 - [ ] 视频 / 表情 / 其他复杂消息类型的完整解析
@@ -34,23 +34,15 @@
 - 当前控件定位依赖中文界面文案（如“微信”“聊天”“会话”“消息”）。
 
 可参考该仓库获取对应版本微信兼容启动方式：
+
 [https://github.com/Skyler1n/WeChat3.9-32bit-Compatibility-Launcher](https://github.com/Skyler1n/WeChat3.9-32bit-Compatibility-Launcher)
 
-## 安装
+## 环境配置
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Windows（uv）示例：
-
-```bash
-irm https://astral.sh/uv/install.ps1 | iex
-uv python install 3.10.16
-uv venv wcf --python 3.10.16
-uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-./wcf/Scripts/Activate.ps1
-```
 
 ## 快速使用
 
@@ -58,7 +50,7 @@ uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 - `wx_name`：你当前登录微信的昵称
 - `default_chat_name`：默认会话（建议唯一置顶）
 
-然后运行示例：
+然后运行示例（已写在 `Wcf.py` 中）
 
 ```python
 from Wcf import Wcf
@@ -76,13 +68,15 @@ while True:
     name, msg = wcf.get_msg(timeout=1.0) # 内部会有日志输出
 ```
 
-## 实现原理（简述）
+## 实现原理
 
 1. 通过 `pywinauto` 连接已启动的 `WeChat.exe`。
 2. 以会话列表、消息列表、搜索框等 UI 控件为锚点完成切换与读取。
-3. 发送消息时使用剪贴板 + `Ctrl+V` 粘贴（文本/图片）。
-4. 接收消息采用后台线程轮询会话未读数，解析新增消息并投递到队列。
-5. 图片消息通过右键复制到剪贴板，再转为 Base64 Data URL。
+3. 鼠标移动模拟人类点击
+4. 文字键入模拟人类输入
+5. 图片发送利用剪贴板做中介
+6. 接收消息采用后台线程轮询会话未读数，解析新增消息并投递到队列。
+7. 图片消息通过右键复制到剪贴板，再转为 Base64 Data URL。
 
 ## 注意事项
 
@@ -113,7 +107,7 @@ from Wcf import Wcf
 
 ### `Wcf`
 
-微信 UI 自动化主类，负责连接客户端、收发消息和新消息监听。
+微信 UI 控制主类，负责连接客户端、发送消息和新消息监听。
 
 主要 API：
 - `init()`：进入聊天页，完成基础准备。
@@ -121,11 +115,12 @@ from Wcf import Wcf
 - `send_image(path, receiver) -> int`：发送图片，`0` 成功，`1` 失败。
 - `enable_receive_msg() -> bool`：启动后台收消息线程。
 - `disable_receive_msg(timeout=5.0) -> bool`：停止后台收消息线程。
-- `get_msg(timeout=None)`：从队列取一条新消息，返回 `(chat_name, [WxMsg...])` 或 `None`。
+- `get_msg(timeout=1.0)`：从队列取一条新消息，返回 `(chat_name, WxMsg)` 或 `None, None`。
+- `get_msg_list(timeout=1.0)`：从队列取该用户缓存中全部消息，返回 `(chat_name, [WxMsg...])` 或 `None, None`。
 
 ## （可选）大模型润色配置
 
-注意！强烈推荐开启润色模式，默认是开启的，因为这样可以极大避免被微信识别出异常。如果您觉得不需要，需手动将函数参数中的 `need_decorate` 置为 `False`。
+注意！强烈推荐开启润色模式，默认是开启的，因为这样可以极大避免被微信识别出异常。如果您觉得不需要，需手动将函数参数中的 `need_decorate` 默认值置为 `False`。
 
 如果你想使用 `need_decorate=True`，请在 `./config/config.yaml` 里按 `API.py` 的结构填充：
 
@@ -134,15 +129,15 @@ llm:
     provider:
         api_key: "YOUR_API_KEY"
         url: "https://api.openai.com/v1"
-        model: "gpt-5.2"
+        model: "gpt-5.2" # 您喜欢的模型，注意最好速度较快
 
     model:
-        name: Decorator
-        # temperature: 0.7
+        name: Decorator # 无用
+        # temperature: 0.7 # 可选参数
         # max_tokens: 512
 ```
 
-### `MxMessageParser`
+### `MxMsgParser`
 
 消息解析器，按 UI 文本特征识别类型并转换为 `WxMsg`。
 
@@ -150,7 +145,7 @@ llm:
 - `parse_single_msg(item) -> Optional[WxMsg]`：解析单条 UI 消息项。
 - `get_msg_from_text(item)`：提取文本消息。
 - `get_msg_from_image(item)`：从剪贴板读取图片并转 Data URL。
-- `get_msg_from_video(item)` / `get_msg_from_emoji(item)` / `get_msg_from_other(item)`：占位解析（当前返回不可解析说明）。
+- `get_msg_from_video(item)` / `get_msg_from_emoji(item)` / `get_msg_from_other(item)`：暂不支持（当前返回不可解析说明）。
 
 ### `WxMsg`
 
