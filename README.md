@@ -137,7 +137,7 @@ llm:
         # max_tokens: 512
 ```
 
-### `MxMsgParser`
+### `WxMsgParser`
 
 消息解析器，按 UI 文本特征识别类型并转换为 `WxMsg`。
 
