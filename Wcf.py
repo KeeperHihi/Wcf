@@ -23,11 +23,11 @@ except Exception:
 try:
     from .utils import *
     from .WxMsg import WxMsg
-    from .MxMessageParser import MxMessageParser
+    from .MxMsgParser import MxMsgParser
 except ImportError:
     from utils import *
     from WxMsg import WxMsg
-    from MxMessageParser import MxMessageParser
+    from MxMsgParser import MxMsgParser
 
 class Wcf:
     def __init__(self):
@@ -49,7 +49,7 @@ class Wcf:
         self.chat = self.win.child_window(title="聊天", control_type="Button").wrapper_object()
         self.friend_list = self.win.child_window(title="通讯录", control_type="Button").wrapper_object()
         self.search = self.win.child_window(title="搜索", control_type="Edit").wrapper_object()
-        self.message_parser = MxMessageParser()
+        self.message_parser = MxMsgParser()
         self.conv_list = self.win.child_window(title="会话", control_type="List")
         self.msg_list = self.win.child_window(title="消息", control_type="List")
 
@@ -834,6 +834,6 @@ if __name__ == "__main__":
         print(friend)
 
     wcf.enable_receive_msg()
-    # wcf.send_text('你好呀！', '文件传输助手', need_decorate=True)
+    wcf.send_text('你好呀！', '文件传输助手', need_decorate=True)
     while True:
         name, msg = wcf.get_msg(timeout=1.0) # 内部会有日志输出
