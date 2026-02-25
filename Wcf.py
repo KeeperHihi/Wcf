@@ -23,11 +23,11 @@ except Exception:
 try:
     from .utils import *
     from .WxMsg import WxMsg
-    from .MxMsgParser import MxMsgParser
+    from .WxMsgParser import WxMsgParser
 except ImportError:
     from utils import *
     from WxMsg import WxMsg
-    from MxMsgParser import MxMsgParser
+    from WxMsgParser import WxMsgParser
 
 class Wcf:
     def __init__(self):
@@ -49,7 +49,7 @@ class Wcf:
         self.chat = self.win.child_window(title="聊天", control_type="Button").wrapper_object()
         self.friend_list = self.win.child_window(title="通讯录", control_type="Button").wrapper_object()
         self.search = self.win.child_window(title="搜索", control_type="Edit").wrapper_object()
-        self.message_parser = MxMsgParser()
+        self.message_parser = WxMsgParser()
         self.conv_list = self.win.child_window(title="会话", control_type="List")
         self.msg_list = self.win.child_window(title="消息", control_type="List")
 
