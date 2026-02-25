@@ -109,13 +109,15 @@ from Wcf import Wcf
 
 主要 API：
 - `init()`：进入聊天页，完成基础准备。
-- `send_text(text, receiver, need_decorate=False) -> int`：发送文本；当 `need_decorate=True` 时，会先用大模型对文本做“保留原意的润色改写”再发送。
+- `send_text(text, receiver, need_decorate=True) -> int`：发送文本；当 `need_decorate=True` 时，会先用大模型对文本做“保留原意的润色改写”再发送。
 - `send_image(path, receiver) -> int`：发送图片，`0` 成功，`1` 失败。
 - `enable_receive_msg() -> bool`：启动后台收消息线程。
 - `disable_receive_msg(timeout=5.0) -> bool`：停止后台收消息线程。
 - `get_msg(timeout=None)`：从队列取一条新消息，返回 `(chat_name, [WxMsg...])` 或 `None`。
 
 ## （可选）大模型润色配置
+
+注意！强烈推荐开启润色模式，默认是开启的，因为这样可以极大避免被微信识别出异常。如果您觉得不需要，需手动将函数参数中的 `need_decorate` 置为 `False`。
 
 如果你想使用 `need_decorate=True`，请在 `./config/config.yaml` 里按 `API.py` 的结构填充：
 

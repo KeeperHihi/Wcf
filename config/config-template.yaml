@@ -8,15 +8,17 @@ default_chat_name: "文件传输助手"
 
 listen_cnt: 5
 
-eps: 0.1
+eps: 0.1 # 一小会儿
+EPS: 0.5 # 一大会儿 
 square_eps: 6
+mouse_move_speed: 3000  # 鼠标移动速度（像素/秒），越大越快
 memory_len: 10
 max_new_msg_cnt: 4
 
 # 收集新消息的时间间隔（秒）
-listen_msg_interval: 1
-type_min_interval: 0.02
-type_max_interval: 0.12
+listen_msg_interval: 0.1
+type_min_interval: 0.05
+type_max_interval: 0.1
 
 enable_image_parse: false
 
