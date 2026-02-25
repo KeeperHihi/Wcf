@@ -30,10 +30,10 @@ llm:
     provider:
         api_key: "YOUR_API_KEY"
         url: "https://api.openai.com/v1"
-        model: "gpt-5.2"
+        model: "gpt-5.2" # 您喜欢的模型，注意最好速度较快
 
     # 这些字段会在请求时透传给 chat.completions.create（可选）
     model:
-        name: Decorator
-        # temperature: 0.7
+        name: Decorator # 无用
+        # temperature: 0.7 # 可选参数
         # max_tokens: 512
