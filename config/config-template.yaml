@@ -1,26 +1,25 @@
 # Wcf 参数配置
 # 注意：wx_name 必填，必须改成你当前登录微信的昵称（用于消息发送者字段）。
 
-wx_name: "hihi"
+wx_name: "hihi" # 自己的微信昵称
 
 # 建议保证只有 default_chat_name 是置顶的，不然可能会出 bug
 default_chat_name: "文件传输助手"
 
-listen_cnt: 5
+listen_cnt: 5 # 监听列表前几个聊天窗口
 
 eps: 0.1 # 一小会儿
 EPS: 0.5 # 一大会儿 
-square_eps: 6
+square_eps: 6 # 点击时随机偏移正方形的半边长
 mouse_move_speed: 3000  # 鼠标移动速度（像素/秒），越大越快
-memory_len: 10
-max_new_msg_cnt: 4
+memory_len: 10 # 针对一个用户缓存的消息条数
+max_new_msg_cnt: 4 # 认为最大有可能的单聊天新消息条数
 
-# 收集新消息的时间间隔（秒）
-listen_msg_interval: 0.1
-type_min_interval: 0.05
-type_max_interval: 0.1
+listen_msg_interval: 0.1 # 聆听新消息的时间间隔（秒）
+type_min_interval: 0.05 # 模拟人类输入时键入每个字符的最小时间间隔（秒）
+type_max_interval: 0.1 # 模拟人类输入时键入每个字符的最大时间间隔（秒）
 
-enable_image_parse: false
+enable_image_parse: false # 是否启用图片消息解析，base64 格式解析消息会比较长
 
 # =====================
 # 可选：大模型润色配置
