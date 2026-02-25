@@ -417,6 +417,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
             print(f'润色后: {res}')
         except Exception as e:
             print(f'润色文本时报错：{e}')
+            print(f'请查看 README，将 LLM 配置信息填好，或取消 need_decorate 来跳过润色步骤。')
             return None
         if not res or not str(res).strip():
             return None
@@ -757,13 +758,6 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
         for possible_new_msg in possible_new_msgs:
             if possible_new_msg == None:
                 continue
-            # print('hahahaha')
-            # if len(self.msg_cache.get(new_msg_name, [])) != 0:
-            #     self.get_latest_msg_in_cache(new_msg_name).show()
-            # else:
-            #     print(f'empty')
-            # possible_new_msg.show()
-            # print('ge', self.get_latest_msg_in_cache(new_msg_name) == possible_new_msg)
             if latest_cached_msg and latest_cached_msg == possible_new_msg:
                 break
             if not self.is_new_msg(new_msg_name, possible_new_msg):
@@ -784,7 +778,7 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
     def get_new_msg(self):
         '''
         获取一个未读消息的人，直接放到队列里，不返回新消息，只返回错误码
-        处理这个消息需要时间，所以目前想法只能一个一个处理
+        TODO: 处理这个消息需要时间，所以目前想法只能一个一个处理，不然可能会读取过时的消息列表？
         '''
         with self.wx_lock:
             try:
@@ -834,22 +828,12 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
 if __name__ == "__main__":
     wcf = Wcf()
 
-    wcf.switch_to_sb('文件传输助手')
+    friends = wcf.get_friends()
+    print(f'friends ({len(friends)}): ')
+    for friend in friends:
+        print(friend)
+
     wcf.enable_receive_msg()
+    # wcf.send_text('你好呀！', '文件传输助手', need_decorate=True)
     while True:
-        name, msgs = wcf.get_msg_list(timeout=1.0)
-        if name:
-            print(f"与{name}的聊天记录：")
-            for msg in msgs:
-                msg.show()
-    # wcf.send_text('马上要开学了，我很难过', 'jrh', need_decorate=True)
-    
-    # wcf.enable_receive_msg()
-    # while True:
-    #     time.sleep(3600)
-    # wcf.send_text("hello, this is Wcf speaking!!!", "文件传输助手")
-    #
-    # msg = wcf.get_msg(timeout=30) # 随便给自己发点啥
-    # print(msg)
-    #
-    # wcf.disable_receive_msg()
+        name, msg = wcf.get_msg(timeout=1.0) # 内部会有日志输出
