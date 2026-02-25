@@ -411,8 +411,8 @@ Emoji 表情：可以根据文本内容和语气，在句末或句中恰当地�
             {'role': 'user', 'content': str(text)},
         ]
         try:
+            print(f'正在润色文本: {text}\n')
             res = self.api.get_response(msgs)
-            print(f'润色前: {text}')
             print(f'润色后: {res}')
         except Exception as e:
             print(f'润色文本时报错：{e}')
